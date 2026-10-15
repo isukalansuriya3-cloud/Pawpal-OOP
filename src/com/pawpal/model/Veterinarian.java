@@ -48,7 +48,7 @@ public class Veterinarian extends User {
     @Override
     public boolean canBookAppointments() {
         return false;
-        
+}        
     public void setSpecialization(String specialization) {
     this.specialization = specialization;
 }
