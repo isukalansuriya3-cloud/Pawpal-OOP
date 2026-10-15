@@ -1,4 +1,4 @@
-
+```java
 package com.pawpal.dao;
 
 import com.pawpal.model.Veterinarian;
@@ -8,11 +8,13 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.PreparedStatement;
 import java.util.ArrayList;
 import java.util.List;
 
 public class VetDAO {
 
+    // View all veterinarians
     public List<Veterinarian> findAll() {
 
         List<Veterinarian> list = new ArrayList<>();
@@ -70,4 +72,47 @@ public class VetDAO {
 
         return list;
     }
+
+    // Update veterinarian profile
+    public boolean update(int vetId, String specialization,
+                          String licenseNo) {
+
+        String sql = "UPDATE vets SET specialization = ?, " +
+                     "license_no = ? WHERE vet_id = ?";
+
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, specialization);
+            ps.setString(2, licenseNo);
+            ps.setInt(3, vetId);
+
+            return ps.executeUpdate() > 0;
+
+        } catch (SQLException e) {
+            System.out.println("Error updating vet: " + e.getMessage());
+            return false;
+        }
+    }
+
+    // Delete veterinarian
+    public boolean delete(int vetId) {
+
+        String sql = "DELETE u FROM users u " +
+                     "JOIN vets v ON v.user_id = u.user_id " +
+                     "WHERE v.vet_id = ?";
+
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setInt(1, vetId);
+
+            return ps.executeUpdate() > 0;
+
+        } catch (SQLException e) {
+            System.out.println("Error deleting vet: " + e.getMessage());
+            return false;
+        }
+    }
 }
+```
