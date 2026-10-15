@@ -1,4 +1,3 @@
-
 package com.pawpal.ui;
 
 import com.pawpal.dao.*;
@@ -54,11 +53,20 @@ public class ConsoleMenu {
                     cancelAppointment();
                     break;
                 case 9:
+                    addVet();
+                    break;
+                case 10:
+                    updateVet();
+                    break;
+                case 11:
+                    deleteVet();
+                    break;
+                case 12:
                     running = false;
                     System.out.println("Goodbye!");
                     break;
                 default:
-                    System.out.println("Invalid option. Choose 1-9.");
+                    System.out.println("Invalid option. Choose 1-12.");
             }
         }
     }
@@ -83,7 +91,10 @@ public class ConsoleMenu {
         System.out.println("6. View Appointments");
         System.out.println("7. Update Appointment");
         System.out.println("8. Cancel Appointment");
-        System.out.println("9. Exit");
+        System.out.println("9. Add Veterinarian (Admin)");
+        System.out.println("10. Update Veterinarian Profile");
+        System.out.println("11. Delete Veterinarian (Admin)");
+        System.out.println("12. Exit");
     }
 
     // 1. Register
@@ -97,34 +108,40 @@ public class ConsoleMenu {
         String type = readLine(
                 "Register as (1 = Pet Owner, 2 = Veterinarian): ");
 
-        User user;
+        try {
+            User user;
 
-        if (type.equals("1")) {
-            user = new PetOwner(
-                    0, name, email, password, city);
+            if (type.equals("1")) {
+                user = new PetOwner(
+                        0, name, email, password, city);
 
-        } else if (type.equals("2")) {
-            String specialization =
-                    readLine("Specialization: ");
-            String license =
-                    readLine("License number: ");
+            } else if (type.equals("2")) {
+                String specialization =
+                        readLine("Specialization: ");
+                String license =
+                        readLine("License number: ");
 
-            user = new Veterinarian(
-                    0, name, email, password, city,
-                    0, specialization, license);
+                user = new Veterinarian(
+                        0, name, email, password, city,
+                        0, specialization, license);
 
-        } else {
-            System.out.println("Invalid registration type.");
-            return;
-        }
+            } else {
+                System.out.println("Invalid registration type.");
+                return;
+            }
 
-        if (userDAO.add(user)) {
-            System.out.println(
-                    "Registration successful! Please log in.");
-        } else {
-            System.out.println(
-                    "Registration failed. Check the database connection "
-                    + "and whether the email is already registered.");
+            if (userDAO.add(user)) {
+                System.out.println(
+                        "Registration successful! Please log in.");
+            } else {
+                System.out.println(
+                        "Registration failed. Check the database connection "
+                        + "and whether the email is already registered.");
+            }
+
+        } catch (IllegalArgumentException e) {
+            // Validation errors from the model setters
+            System.out.println(e.getMessage());
         }
     }
 
@@ -149,7 +166,7 @@ public class ConsoleMenu {
         }
     }
 
-    // 3. View Veterinarians
+    // 3. View Veterinarians  (READ)
     private void viewVets() {
         List<Veterinarian> vets = vetDAO.findAll();
 
@@ -170,6 +187,116 @@ public class ConsoleMenu {
                     vet.getFullName(),
                     vet.getSpecialization(),
                     vet.getCity());
+        }
+    }
+
+    // 9. Add Veterinarian (Admin only)  (CREATE)
+    private void addVet() {
+        if (!requireLogin()) {
+            return;
+        }
+
+        if (!(currentUser instanceof Admin)) {
+            System.out.println("Only admins can add veterinarians.");
+            return;
+        }
+
+        System.out.println("\n--- Add Veterinarian ---");
+
+        String name = readLine("Full name: ");
+        String email = readLine("Email: ");
+        String password = readLine("Password: ");
+        String city = readLine("City: ");
+        String specialization = readLine("Specialization: ");
+        String license = readLine("License number: ");
+
+        try {
+            Veterinarian vet = new Veterinarian(
+                    0, name, email, password, city,
+                    0, specialization, license);
+
+            if (vetDAO.add(vet)) {
+                System.out.println("Veterinarian added successfully!");
+            } else {
+                System.out.println("Could not add the veterinarian.");
+            }
+        } catch (IllegalArgumentException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    // 10. Update Veterinarian Profile  (UPDATE)
+    // A vet edits their own profile; an admin can edit any vet.
+    private void updateVet() {
+        if (!requireLogin()) {
+            return;
+        }
+
+        Veterinarian vet;
+
+        if (currentUser instanceof Veterinarian) {
+            vet = (Veterinarian) currentUser;
+        } else if (currentUser instanceof Admin) {
+            viewVets();
+            int vetId = readInt("Enter Vet ID to update: ");
+            vet = vetDAO.findById(vetId);
+
+            if (vet == null) {
+                System.out.println("Veterinarian not found.");
+                return;
+            }
+        } else {
+            System.out.println(
+                    "Only veterinarians and admins can update vet profiles.");
+            return;
+        }
+
+        System.out.println("\n--- Update Veterinarian Profile ---");
+
+        String city = readLine("New city (" + vet.getCity() + "): ");
+        String specialization = readLine(
+                "New specialization (" + vet.getSpecialization() + "): ");
+        String license = readLine(
+                "New license number (" + vet.getLicenseNo() + "): ");
+
+        try {
+            vet.setCity(city);
+            vet.setSpecialization(specialization);
+            vet.setLicenseNo(license);
+
+            if (vetDAO.update(vet)) {
+                System.out.println("Profile updated successfully.");
+            } else {
+                System.out.println("Could not update the profile.");
+            }
+        } catch (IllegalArgumentException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    // 11. Delete Veterinarian (Admin only)  (DELETE)
+    private void deleteVet() {
+        if (!requireLogin()) {
+            return;
+        }
+
+        if (!(currentUser instanceof Admin)) {
+            System.out.println("Only admins can delete veterinarians.");
+            return;
+        }
+
+        viewVets();
+
+        int vetId = readInt("Enter Vet ID to delete: ");
+        String confirm = readLine(
+                "Permanently delete this veterinarian? (y/n): ");
+
+        if (confirm.equalsIgnoreCase("y")) {
+            if (vetDAO.delete(vetId)) {
+                System.out.println("Veterinarian deleted.");
+            } else {
+                System.out.println("Could not delete the veterinarian.");
+            }
         }
     }
 
